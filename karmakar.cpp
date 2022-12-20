@@ -54,11 +54,22 @@ int main()
 {
     using namespace boost::numeric::ublas;
 
-    matrix<double> A{identity_matrix<double>(2)};
-    vector<double> b(2, 1);
-    vector<double> c(2, 2);
-    c(1) = 1;
-    vector<double> x0(2, 0.1);
+    /*    matrix<double> m(2, 2, 0.9);
+    m(0, 1) = 0;
+    m(1, 0) = 0;
+    matrix<double> inv_m(2, 2, 0);
+    bool isInvertible{invertMatrix(m, inv_m)};
+    std::cout << "m" << m << " ___ inv_m" << inv_m << std::endl;
+    */
+    matrix<double> A{identity_matrix<double>(2)*2};
+    matrix<double> B(2, 2, 2);
+    B(1, 0) = 1;
+    std::cout << "trans(A)" << trans(A) << std::endl;
+    std::cout << "trans(B)" << trans(B) << std::endl;
+    vector<double> b(2, 500);
+    vector<double> c(2, 1);
+    c(1) = 3;
+    vector<double> x0(2, 1);
     uint repetitions{10};
     if (affineScaling(A, b, c, x0, repetitions) == SolutionType::BOUNDED)
     {
@@ -74,7 +85,7 @@ int main()
 
 matrix<double> diagonale(vector<double> &vector)
 {
-    matrix<double> m(vector.size(), vector.size());
+    matrix<double> m{zero_matrix<double>(vector.size(), vector.size())};
 
     for (size_t i{0}; i < vector.size(); ++i)
     {
@@ -87,22 +98,23 @@ matrix<double> diagonale(vector<double> &vector)
 bool invertMatrix(const matrix<double> &input, matrix<double> &inverse)
 {
     typedef permutation_matrix<std::size_t> pmatrix;
-    matrix<double> A(input);             // copia di lavoro della matrice input
+    matrix<double> A(input);
     pmatrix pm(A.size1());               // crea una matrice di permutazione per la fattorizzazione LU
     const int res = lu_factorize(A, pm); // esegue la fattorizzazione LU
+    // std::cout << "res = " << res << std::endl;
     if (res != 0)
     {
         return false;
     }
     inverse.assign(identity_matrix<double>(A.size1())); // crea la matrice identità
-    lu_substitute(A, pm, inverse);                      // backsubstitute to get the inverse
+    lu_substitute(A, pm, inverse);
     return true;
 }
 
 SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> &c, vector<double> &x0, uint &repetitions)
 {
     u_int k{0};
-    vector<double> v[repetitions];
+    vector<double> v(b.size());
     vector<double> x[repetitions];
     matrix<double> Dv(b.size(), b.size());
     matrix<double> Dv_inversa(b.size(), b.size());
@@ -110,21 +122,24 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
     vector<double> hx(b.size());
     vector<double> hv(b.size());
     // double alpha;
-    double min{0};
+    double min;
     double tmp;
+    bool isUnbounded{true};
+    bool isFirst;
     // double gamma{1};
 
     x[0] = x0;
 
     while (k < repetitions)
     {
-        v[k] = b - prod(A, x[k]);
-        Dv = diagonale(b);
+        v = b - prod(A, x[k]) + vector<double>(b.size(), 0.001);
+        std::cout << "v[" << k << "] = " << v << " ____ "
+                  << "x[" << k << "] = " << x[k] << " ____ " << std::endl;
+        Dv = diagonale(v); //  + matrix<double>(Dv.size1(), Dv.size2(), 0.00000001)
         if (!invertMatrix(Dv, Dv_inversa))
         {
             throw("Matrice Dv non invertibile");
         }
-
         Dv = prod(Dv_inversa, Dv_inversa);
         Dv = prod(trans(A), Dv);
         Dv = prod(Dv, A);
@@ -136,34 +151,48 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
         hv = prod(-A, hx);
         for (uint i{0}; i < hv.size(); ++i)
         {
-            if (hv(i) > 0)
+            if (hv(i) < 0)
             {
-                return SolutionType::UNBOUNDED;
+                isUnbounded = false;
             }
         }
-        for (uint i{0}; i < b.size() - 1; ++i)
+        if (isUnbounded)
+        {
+            return SolutionType::UNBOUNDED;
+        }
+
+        isFirst = true;
+        for (uint i{0}; i < b.size(); ++i)
         {
             if (hv(i) < 0)
             {
-                do
+                if (isFirst)
                 {
-                    min = -v[k](i) / hv(i);
-                } while (false);
-                tmp = -v[k](i + 1) / hv(i + 1);
-                if (min > tmp)
+                    min = -v(i) / hv(i);
+                    isFirst = false;
+                }
+                else
                 {
-                    min = tmp;
+                    tmp = -v(i) / hv(i);
+                    if (min > tmp)
+                    {
+                        min = tmp;
+                    }
                 }
             }
         }
         // alpha = gamma*min;
-        x[k + 1] = x[k] + min * hx;
+        if (k < repetitions - 1)
+        {
+            x[k + 1] = x[k] + min * hx;
+        }
 
         ++k;
     }
     double res{0};
-    for (uint i{0}; i < c.size(); ++i) {
-        res += c(i)*x[repetitions - 1](i);
+    for (uint i{0}; i < c.size(); ++i)
+    {
+        res += c(i) * x[repetitions - 1](i);
     }
     std::cout << "Il massimo è: " << res << std::endl;
 
