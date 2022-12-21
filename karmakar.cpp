@@ -41,6 +41,7 @@ bool invertMatrix(const matrix<double> &input, matrix<double> &inverse);
  * @param c vettore di cTx (cT è il vettore riga di c)
  * @param x0
  * @param repetitions è il numero di iterazioni consentite per ottenere il risultato
+ * @param gamma
  * @return è il vettore massimo
  */
 SolutionType affineScaling(
@@ -48,7 +49,9 @@ SolutionType affineScaling(
     vector<double> &b,
     vector<double> &c,
     vector<double> &x0,
-    uint &repetitions);
+    uint &repetitions,
+    double gamma
+);
 
 int main()
 {
@@ -61,17 +64,18 @@ int main()
     bool isInvertible{invertMatrix(m, inv_m)};
     std::cout << "m" << m << " ___ inv_m" << inv_m << std::endl;
     */
-    matrix<double> A{identity_matrix<double>(2)*2};
-    matrix<double> B(2, 2, 2);
-    B(1, 0) = 1;
-    std::cout << "trans(A)" << trans(A) << std::endl;
-    std::cout << "trans(B)" << trans(B) << std::endl;
-    vector<double> b(2, 500);
+    matrix<double> A{identity_matrix<double>(2)};
+    A(0, 1) = -1;
+    A(1, 0) = 1;
+    std::cout << "A:" << A << std::endl;
+    vector<double> b(2, 2);
+    b(1) = 6;
     vector<double> c(2, 1);
-    c(1) = 3;
-    vector<double> x0(2, 1);
+    c(1) = 0.5;
+    vector<double> x0(2, 0.5);
+    x0(1) = 0;
     uint repetitions{10};
-    if (affineScaling(A, b, c, x0, repetitions) == SolutionType::BOUNDED)
+    if (affineScaling(A, b, c, x0, repetitions, 0.5) == SolutionType::BOUNDED)
     {
         std::cout << "BOUNDED solution" << std::endl;
     }
@@ -111,7 +115,7 @@ bool invertMatrix(const matrix<double> &input, matrix<double> &inverse)
     return true;
 }
 
-SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> &c, vector<double> &x0, uint &repetitions)
+SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> &c, vector<double> &x0, uint &repetitions, double gamma)
 {
     u_int k{0};
     vector<double> v(b.size());
@@ -126,16 +130,15 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
     double tmp;
     bool isUnbounded{true};
     bool isFirst;
-    // double gamma{1};
 
     x[0] = x0;
 
     while (k < repetitions)
     {
-        v = b - prod(A, x[k]) + vector<double>(b.size(), 0.001);
+        v = b - prod(A, x[k]) + vector<double>(b.size(), 1e-16);
         std::cout << "v[" << k << "] = " << v << " ____ "
                   << "x[" << k << "] = " << x[k] << " ____ " << std::endl;
-        Dv = diagonale(v); //  + matrix<double>(Dv.size1(), Dv.size2(), 0.00000001)
+        Dv = diagonale(v);
         if (!invertMatrix(Dv, Dv_inversa))
         {
             throw("Matrice Dv non invertibile");
@@ -181,10 +184,9 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
                 }
             }
         }
-        // alpha = gamma*min;
         if (k < repetitions - 1)
         {
-            x[k + 1] = x[k] + min * hx;
+            x[k + 1] = x[k] + min * gamma * hx;
         }
 
         ++k;
