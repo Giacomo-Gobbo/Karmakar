@@ -119,7 +119,7 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
 {
     u_int k{0};
     vector<double> v(b.size());
-    vector<double> x[repetitions];
+    vector<double> x{x0};
     matrix<double> Dv(b.size(), b.size());
     matrix<double> Dv_inversa(b.size(), b.size());
     matrix<double> mInv(b.size(), b.size());
@@ -131,13 +131,11 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
     bool isUnbounded{true};
     bool isFirst;
 
-    x[0] = x0;
-
     while (k < repetitions)
     {
-        v = b - prod(A, x[k]) + vector<double>(b.size(), 1e-16);
+        v = b - prod(A, x) + vector<double>(b.size(), 1e-16);
         std::cout << "v[" << k << "] = " << v << " ____ "
-                  << "x[" << k << "] = " << x[k] << " ____ " << std::endl;
+                  << "x[" << k << "] = " << x << " ____ " << std::endl;
         Dv = diagonale(v);
         if (!invertMatrix(Dv, Dv_inversa))
         {
@@ -186,7 +184,7 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
         }
         if (k < repetitions - 1)
         {
-            x[k + 1] = x[k] + min * gamma * hx;
+            x = x + min * gamma * hx;
         }
 
         ++k;
@@ -194,7 +192,7 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
     double res{0};
     for (uint i{0}; i < c.size(); ++i)
     {
-        res += c(i) * x[repetitions - 1](i);
+        res += c(i) * x(i);
     }
     std::cout << "Il massimo è: " << res << std::endl;
 
