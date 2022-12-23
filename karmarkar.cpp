@@ -9,6 +9,8 @@
 
 using namespace boost::numeric::ublas;
 
+struct LinearConstraintSystem{
+
 enum class SolutionType
 {
     BOUNDED,  // trovata una soluzione ottima
@@ -31,6 +33,10 @@ enum class ConstraintType{
 };
 
 enum class OptimizationType { MIN, MAX };
+
+LinearConstraintSystem();
+
+LinearConstraintSystem& add_constraint(const vector<double>& a, const double& b, const ConstraintType type);
 
 matrix<double> diagonale(vector<double> &vector);
 
@@ -55,15 +61,23 @@ bool invertMatrix(const matrix<double> &input, matrix<double> &inverse);
  * @return è il vettore massimo
  */
 
+
 SolutionType affineScaling(
     matrix<double> &A,
     vector<double> &b,
     vector<double> &c,
     vector<double> &x0,
-    unsigned int &repetitions);
+    unsigned int &repetitions,
+    OptimizationType opt,
+    ConstraintType con);
 
+};
 
-matrix<double> diagonale(vector<double> &vector)
+LinearConstraintSystem& LinearConstraintSystem::add_constraint(const vector<double>& a, const double& b, const LinearConstraintSystem::ConstraintType type){
+
+}
+
+matrix<double> LinearConstraintSystem::diagonale(vector<double> &vector)
 {
     matrix<double> m(vector.size(), vector.size());
 
@@ -80,7 +94,7 @@ matrix<double> diagonale(vector<double> &vector)
     return m;
 }
 
-bool invertMatrix(const matrix<double> &input, matrix<double> &inverse)
+bool LinearConstraintSystem::invertMatrix(const matrix<double> &input, matrix<double> &inverse)
 {
     typedef permutation_matrix<std::size_t> pmatrix;
     matrix<double> A(input);             // copia di lavoro della matrice input
@@ -93,9 +107,9 @@ bool invertMatrix(const matrix<double> &input, matrix<double> &inverse)
     inverse.assign(identity_matrix<double>(A.size1())); // crea la matrice identità
     lu_substitute(A, pm, inverse);                      // backsubstitute to get the inverse
     return true;
-};
+}
 
-SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> &c, vector<double> &x0, unsigned int &repetitions, OptimizationType opt, ConstraintType con){
+LinearConstraintSystem::SolutionType LinearConstraintSystem::affineScaling(matrix<double> &A, vector<double> &b, vector<double> &c, vector<double> &x0, unsigned int &repetitions, LinearConstraintSystem::OptimizationType opt, LinearConstraintSystem::ConstraintType con){
     unsigned int k{0};
     vector<double> v[repetitions];
     vector<double> x[repetitions];
@@ -296,6 +310,7 @@ SolutionType affineScaling(matrix<double> &A, vector<double> &b, vector<double> 
 }
 
 int main(){
+
     using namespace boost::numeric::ublas;
 
     unsigned int repetitions{24};
@@ -305,8 +320,8 @@ int main(){
     vector<double> b(2);
     vector<double> c(2);
     vector<double> x0(2);
-    OptimizationType opt{OptimizationType::MIN};
-    ConstraintType con{ConstraintType::GE};
+    LinearConstraintSystem::OptimizationType opt{LinearConstraintSystem::OptimizationType::MIN};
+    LinearConstraintSystem::ConstraintType con{LinearConstraintSystem::ConstraintType::GE};
 
     // TEST 1:
     A(0,0) = 1;
@@ -320,7 +335,9 @@ int main(){
     x0[0] = 10;
     x0[1] = 10;
 
-    if (affineScaling(A, b, c, x0, repetitions, opt, con) == SolutionType::BOUNDED)
+    LinearConstraintSystem lcs;
+
+    if (lcs.affineScaling(A, b, c, x0, repetitions, opt, con) == LinearConstraintSystem::SolutionType::BOUNDED)
     {
         std::cout << "BOUNDED solution" << std::endl;
     }
