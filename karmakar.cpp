@@ -27,6 +27,12 @@ struct LinearConstrainSystem {
         UNBOUNDED //!< Indica che il sistema NON ha una soluzione ottima 
     };
 
+    enum class ConstrainType {
+        LE, // <=
+        EQ, // ==
+        GE, // >=
+    };
+
     /**
      * @brief Classe di enumerazione per definire se il sistema è utilizzato per un problema di massimizzazione o minimizzazione
     */
@@ -35,13 +41,99 @@ struct LinearConstrainSystem {
         MAX  //!< Indica che il problema è di massimizzazione
     };
 
+    /**
+     * @brief Costruttore Vuoto
+    */
     LinearConstrainSystem()
-        : A{nullptr}, b{nullptr}, k{0}
+        : k{0}
     {}
     
+    /**
+     * @brief Costruttore
+     * 
+     * @param A: Matrice dei vincoli
+     * @param b: Vettore delle condizioni dei vincoli
+    */
     LinearConstrainSystem(matrix<T> A, vector<T> b)
         : A{A}, b{b}, k{0}
     {}
+
+    /**
+     * @brief Metodo che aggiunge un vincolo al sistema
+     * 
+     * @param a: Vettore dei coefficienti del nuovo vincolo
+     * @param b: Condizione del nuovo vincolo
+     * @param type: Tipo del nuovo vincolo
+    */
+    LinearConstrainSystem& add_constrain(const vector<T>& a, const T& b, const ConstrainType type){
+        // Calcolo il numero di righe e colonne della matrice dei vincoli
+        unsigned long int nrow{this->A.size1()};
+        unsigned long int ncol{this->A.size2()};
+
+        if(ncol == 0){
+            ncol = a.size();
+        }
+        vector<T> tmp(ncol);
+        // Se il nuovo vincolo contiene un numero di variabili maggiore o minore a quelle disponibili elimino quelle in eccesso ed aggiungo quelle in meno impostandole
+        // a zero
+        if(a.size() != ncol){
+            std::cout << "Array a di dimensione errata (" << a.size() << "), imposto a dimensione corretta (" << ncol << ")" << std::endl;
+
+            // Copio il nuovo vettore dei vincoli in quello di dimensione corretta
+            for(uint i{0}; i < ncol && i < a.size(); ++i){
+                tmp[i] = a[i];
+            }
+        } else {
+            tmp = a;
+        }
+
+        // Calcolo le dimensioni della nuova matrice dei vincoli aggiungendo una riga
+        unsigned long int newRow{nrow+1};
+        // Aggiungo una colonna se il vincolo non è di uguaglianza
+        if (type == ConstrainType::EQ){
+            ++newRow;
+        }
+
+        // Creo una nuova matrice dei vincoli
+        matrix<T> newA(newRow, ncol);
+        for (uint i{0}; i < newRow; ++i){
+            for (uint j{0}; j < ncol; ++j){
+                // Se il coefficiente da copiare appartiene alla matrice precedente, lo copio dalla matrice iniziale
+                if (i < nrow){
+                    newA(i, j) = this->A(i, j);
+                // Se il coefficiente da copiare corrisponde ad uno del nuovo vincolo, allora lo copio dal vettore passato in input
+                } else {
+                    newA(i, j) = tmp[j];
+                }
+            }
+        }
+
+        // Aggiungo alle condizioni dei vincoli la nuova condizione
+        vector<T> newb(newRow);
+        for (uint i{0}; i < newRow; ++i){
+            if (i < nrow){
+                newb[i] = this->b[i];
+            } else if (i >= nrow) {
+                newb[i] = b;
+            }
+        }
+        
+        // Se il vincolo aggiunto è un vincolo di maggiore uguale o di uguaglianza
+        if (type == ConstrainType::GE || type == ConstrainType::EQ){
+            // Moltiplico tutti i coefficienti del nuovo vincolo (nel caso dell'uguaglianza del secondo) per -1
+            for (uint i{0}; i < ncol; ++i){
+                newA(newRow-1, i) *= -1;
+            }
+
+            // Imposto a -b il valore della nuova condizione (nel caso dell'uguaglianza della seconda)
+            newb[newRow-1] = -b;
+        }
+
+        this->A = newA;
+        this->b = newb;
+
+        return *this;
+    }
 
     /**
      * @brief Metodo che crea una matrice diagonale con gli elementi del vettore passato in input
@@ -84,7 +176,7 @@ struct LinearConstrainSystem {
             return false;
         }
         // Assegnamo alla matrice inversa il valore della matrice identità
-        inverse.assign(identity_matrix<T>(A.size1()));
+        inverse = identity_matrix<T>(A.size1());
         // Inverto la matrice
         lu_substitute(A, pm, inverse);
         return true;
@@ -97,7 +189,7 @@ struct LinearConstrainSystem {
      * @param b: secondo vettore
      * @return difference: La differenza tra i due array
     */
-    T diff(vector<T> &a, vector<T> &b){
+    double diff(vector<T> &a, vector<T> &b){
         // Se la dimensione dei due array differisce usciamo
         if (a.size() != b.size()){
                 std::cout << "Array di dimensione diversa, uscita..." << std::endl;
@@ -105,7 +197,7 @@ struct LinearConstrainSystem {
         }
         
         // Calcolo la difference come la somma dei valori assoluti della differenza dei due array
-        T difference{0};
+        double difference{0};
         for(uint i{0}; i < a.size(); ++i){
             difference += std::abs(a[i]-b[i]);
         }
@@ -199,8 +291,7 @@ struct LinearConstrainSystem {
             // Calcolo il vettore v che contiene la differenza tra l'array b ed il prodotto della matrice A con il vettore dei punti x
             vector<T> v((this->b).size());
             v = (this->b) - prod((this->A), solution) + vector<T>((this->b).size(), 1e-16);
-            std::cout << "v[" << (this->k) << "] = " << v << " ____ "
-                    << "x[" << (this->k) << "] = " << solution << " ____ " << std::endl;
+            std::cout << "x[" << (this->k) << "] = " << solution << std::endl;
 
             // Calcolo la matrice diagonale Dv
             matrix<T> Dv((this->b).size(), (this->b).size());
@@ -254,7 +345,12 @@ struct LinearConstrainSystem {
         {
             res += c(i) * solution(i);
         }
-        std::cout << "Il massimo è: " << res << std::endl;
+        if (type == OptimizationType::MAX){
+            std::cout << "Il massimo è: ";
+        } else {
+            std::cout << "Il minimo è: ";
+        }
+        std::cout << res << std::endl;
 
         return SolutionType::BOUNDED;
     }
@@ -262,7 +358,6 @@ struct LinearConstrainSystem {
 
 int main()
 {
-
     /*    matrix<T> m(2, 2, 0.9);
     m(0, 1) = 0;
     m(1, 0) = 0;
@@ -270,33 +365,40 @@ int main()
     bool isInvertible{invertMatrix(m, inv_m)};
     std::cout << "m" << m << " ___ inv_m" << inv_m << std::endl;
     */
-    matrix<double> A{identity_matrix<double>(2)};
-    A(0, 1) = -1;
-    A(1, 0) = 1;
-    std::cout << "A:" << A << std::endl;
-    vector<double> b(2, 2);
-    b(1) = 6;
+
+    // matrix<double> A{identity_matrix<double>(2)};
+    // A(0, 1) = -1;
+    // A(1, 0) = 1;
+    // std::cout << "A:" << A << std::endl;
+    // vector<double> b(2, 2);
+    // b(1) = 6;
+    // LinearConstrainSystem<double> obj(A, b);
+    
+    LinearConstrainSystem<double> obj;
+    vector<double> vett1(2, 1);
+    vett1[1] = 0;
+    vector<double> vett2(2, 2);
+    vett2[1] = 0;
+    vector<double> vett3(2, 3);
+    vett3[0] = 0;
+    obj.add_constrain(vett1, 1, obj.ConstrainType::LE);
+    obj.add_constrain(vett2, 2, obj.ConstrainType::EQ);
+    obj.add_constrain(vett3, 3, obj.ConstrainType::GE);
+
+    std::cout << "A: " << obj.A << std::endl;
+    std::cout << "b: " << obj.b << std::endl;
+
     vector<double> c(2, 1);
-    c(1) = 0.5;
-    vector<double> x0(2, 0.5);
-    x0(1) = 0;
-    uint repetitions{10};
-    LinearConstrainSystem<double> obj(A, b);
-    auto solution = obj.karmakar<int>(x0, c, 0.5, obj.OptimizationType::MAX, 50);
+    // c[1] = 0.5;
+    vector<double> x0(2, 0.01);
+
+    auto solution = obj.karmakar<int>(x0, c, 0.5, obj.OptimizationType::MIN, 50);
     if (solution == obj.SolutionType::BOUNDED){
         std::cout << "Bounded" << std::endl;
         std::cout << "Soluzione: " << x0 << std::endl;
     } else {
         std::cout << "Unbounded" << std::endl;
     }
-    // if (affineScaling(A, b, c, x0, OptimizationType::MIN, repetitions, 0.5) == SolutionType::BOUNDED)
-    // {
-    //     std::cout << "BOUNDED solution" << std::endl;
-    // }
-    // else
-    // {
-    //     std::cout << "UNBOUNDED solution" << std::endl;
-    // }
 
     return 0;
 }
