@@ -70,7 +70,7 @@ struct LinearConstrainSystem {
         unsigned long int nrow{this->A.size1()};
         unsigned long int ncol{this->A.size2()};
 
-        if(ncol == 0){
+        if(ncol == 0) {
             ncol = a.size();
         }
         vector<T> tmp(ncol);
