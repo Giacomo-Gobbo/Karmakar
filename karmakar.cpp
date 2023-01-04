@@ -219,7 +219,7 @@ struct LinearConstrainSystem {
      * @param vector: Vettore da inserire come diagonale principale
      * @return m: Matrice diagonale
     */
-    static matrix<T> diagonale(vector<T>& vector) const{
+    matrix<T> diagonale(vector<T>& vector) const{
         // Creo una matrice quadrata di dimensione pari a quella del vettore in input con tutti gli elementi posti a zero
         matrix<T> m{zero_matrix<T>(vector.size(), vector.size())};
 
@@ -239,7 +239,7 @@ struct LinearConstrainSystem {
      * @param inverse: Matrice dove inserire l'inversa
      * @return booleano che indica se la matrice è invertibile o meno
     */
-    static bool invertMatrix(const matrix<T>& input, matrix<T>& inverse) {
+    static bool invertMatrix(const matrix<T>& input, matrix<T>& inverse){
         // Definisco una matrice di permutazione
         typedef permutation_matrix<std::size_t> pmatrix;
         // Inizializzo una matrice di lavoro
@@ -267,7 +267,7 @@ struct LinearConstrainSystem {
      * @param b: secondo vettore
      * @return difference: La differenza tra i due array
     */
-    static long double diff(vector<T>& a, vector<T>& b) const {
+    long double diff(vector<T>& a, vector<T>& b) const {
         // Se la dimensione dei due array differisce usciamo
         if (a.size() != b.size()){
                 std::cout << "Array di dimensione diversa, uscita..." << std::endl;
@@ -290,7 +290,7 @@ struct LinearConstrainSystem {
      * @param opt: Tipo di ottimizzazione selezionato
      * @return unbounded: Booleano che indica se il sistema NON ha soluzione
     */
-    static bool isUnbounded(const vector<T>& hv, const OptimizationType& opt) const{
+    bool isUnbounded(const vector<T>& hv, const OptimizationType& opt) const{
             bool unbounded{true};
 
             // Controllo se tutti gli elementi...
@@ -316,7 +316,7 @@ struct LinearConstrainSystem {
      * @param opt: Tipo di soluzione selezionata
      * @return dir: la direzione da seguire
     */
-    static T direction(const vector<T>& v, const vector<T>& hv, const OptimizationType& opt) const{
+    T direction(const vector<T>& v, const vector<T>& hv, const OptimizationType& opt) const{
         T dir;
         bool first{true};
 
@@ -355,7 +355,7 @@ struct LinearConstrainSystem {
      * @param a: Vettore di cui fare la norma
      * @return La norma del vettore
     */
-    static long double norm(const vector<T>& a) const{
+    long double norm(const vector<T>& a) const{
         long double sum{0};
         // Sommo i valori al quadrato del vettore
         for (uint i{0}; i<a.size(); ++i){
@@ -381,26 +381,28 @@ struct LinearConstrainSystem {
         // Calcolo la matrice di lavoro A ed aggiungo al vettore dei costi
         // i costi delle variabili di slack (poste a zero)
         matrix<T> workA{unione()};
-        vector<T> workc(workA.size2());
+        vector<T> workc(workA.size2(), 0);
         for (uint i{0}; i<c.size(); ++i){
             workc[i] = c[i];
         }
+
+        std::cout << "workA: " << workA << std::endl;
+        std::cout << "workc: " << workc << std::endl << std::endl;
 
         // Calcolo la soluzione iniziale
         solution = norm(b) / norm(prod(workA, workc)) * workc;
         vector<T> xprev{solution*2};
 
-        while (((this->k) < repetitions-1) && (norm(xprev - solution) > 1e-16)){
+        while (((this->k) < repetitions-1) && (norm(xprev - solution) > 1e-10)){
             ++(this->k);
             
             // Calcolo il vettore v che contiene la differenza tra l'array b ed il prodotto della matrice A con il vettore dei punti x
             vector<T> v{b - prod(workA, solution)};
-            std::cout << std::endl << "x[" << (this->k) << "] = " << solution << std::endl;
+            std::cout << "x[" << (this->k) << "] = " << solution << std::endl;
 
             // Calcolo la matrice diagonale Dv
             matrix<T> Dv(diagonale(v));
             
-            Dv = prod(trans(Dv), Dv);
             // Se non è invertibile usciamo
             matrix<T> Dv_inversa;
             if (!invertMatrix(Dv, Dv_inversa))
@@ -408,26 +410,21 @@ struct LinearConstrainSystem {
                 throw(std::domain_error("Matrice Dv non invertibile"));
             }
 
-            Dv_inversa = prod(Dv_inversa, trans(Dv));
-            matrix<T> m(trans(A));
-            // (A.T)Dv
+            matrix<T> m(trans(workA));
+            // (A.T)Dv^-1
             m = prod(m, Dv_inversa);
             // (A.T)Dv^-2
             m = prod(m, Dv_inversa);
             // (A.T)Dv^-2(A)
             m = prod(m, workA);
 
-            m = prod(trans(m), m);
-            std::cout << m << std::endl;
             matrix<T> mInv;
             // Se non è invertibile usciamo
             if (!invertMatrix(m, mInv))
             {
                 throw(std::domain_error("Matrice T(A)Dv^{-2}A non invertibile"));
             }
-            std::cout << "ALTRA DV" << std::endl;
-
-            mInv = prod(mInv, trans(m));
+            // std::cout << "ALTRA DV" << std::endl;
 
             // Effettuiamo il prodotto tra la matrice inversa di T(A)Dv^{-2}A e c
             vector<T> hx(prod(mInv, workc));
@@ -456,9 +453,9 @@ struct LinearConstrainSystem {
             res += workc(i) * solution(i);
         }
         if (type == OptimizationType::MAX){
-            std::cout << "Il massimo è: ";
+            std::cout << std::endl << "Il massimo è: ";
         } else {
-            std::cout << "Il minimo è: ";
+            std::cout << std::endl << "Il minimo è: ";
         }
         std::cout << res << std::endl;
 
@@ -505,16 +502,27 @@ int main()
     // obj.add_constrain(vett3, 3, obj.ConstrainType::GE);
 
 
-    LinearConstrainSystem<long double> obj;
-    vector<long double> vett1(2, 2);
-    vett1[0] = -2;
-    vector<long double> vett2(2, 1);
+    // LinearConstrainSystem<long double> obj;
+    // vector<long double> vett1(2, 2);
+    // vett1[0] = -2;
+    // vector<long double> vett2(2, 1);
 
-    obj.add_constrain(vett1, 5, obj.ConstrainType::LE);
-    obj.add_constrain(vett2, 0, obj.ConstrainType::LE);
+    // obj.add_constrain(vett1, 5, obj.ConstrainType::LE);
+    // obj.add_constrain(vett2, 0, obj.ConstrainType::LE);
+
+    // vector<long double> c(2, 1);
+    // c[0] = 0.5;
+    
+    LinearConstrainSystem<long double> obj;
+    vector<long double> vett1(2, 1);
+    vector<long double> vett2(2, -1);
+    vett2[1] = 1;
+
+    obj.add_constrain(vett1, 5, obj.ConstrainType::EQ);
+    obj.add_constrain(vett2, 3, obj.ConstrainType::EQ);
 
     vector<long double> c(2, 1);
-    c[0] = 0.5;
+    c[0] = 2;
 
     std::cout << "A: " << obj.A << std::endl;
     std::cout << "b: " << obj.b << std::endl;
@@ -525,19 +533,25 @@ int main()
 
     vector<long double> x0;
 
-    auto solution = obj.karmakar<int>(x0, c, 0.5, obj.OptimizationType::MAX, 50);
-    if (solution == obj.SolutionType::BOUNDED){
-        std::cout << "Bounded" << std::endl;
-        std::cout << "Soluzione: " << x0 << std::endl;
-    } else {
-        std::cout << "Unbounded" << std::endl;
-    }
+    try {
 
-    // if (obj.is_feasible()){
-    //     std::cout << "FEASIBLE" << std::endl;
-    // } else {
-    //     std::cout << "NOT FEASIBLE" << std::endl;
-    // }
+        auto solution = obj.karmakar<int>(x0, c, 0.5, obj.OptimizationType::MAX, 50);
+        if (solution == obj.SolutionType::BOUNDED){
+            std::cout << "Bounded" << std::endl;
+            std::cout << "Soluzione: " << x0 << std::endl;
+        } else {
+            std::cout << "Unbounded" << std::endl;
+        }
+        
+
+        if (obj.is_feasible()){
+            std::cout << "FEASIBLE" << std::endl;
+        } else {
+            std::cout << "NOT FEASIBLE" << std::endl;
+        }
+    } catch(std::exception& e){
+        std::cout << typeid(e).name() << ": " << e.what() << std::endl;
+    }
 
     return 0;
 }
