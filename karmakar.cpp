@@ -219,7 +219,7 @@ struct LinearConstrainSystem {
      * @param vector: Vettore da inserire come diagonale principale
      * @return m: Matrice diagonale
     */
-    matrix<T> diagonale(vector<T>& vector) const{
+    static matrix<T> diagonale(vector<T>& vector) const{
         // Creo una matrice quadrata di dimensione pari a quella del vettore in input con tutti gli elementi posti a zero
         matrix<T> m{zero_matrix<T>(vector.size(), vector.size())};
 
@@ -239,7 +239,7 @@ struct LinearConstrainSystem {
      * @param inverse: Matrice dove inserire l'inversa
      * @return booleano che indica se la matrice è invertibile o meno
     */
-    bool invertMatrix(const matrix<T>& input, matrix<T>& inverse) {
+    static bool invertMatrix(const matrix<T>& input, matrix<T>& inverse) {
         // Definisco una matrice di permutazione
         typedef permutation_matrix<std::size_t> pmatrix;
         // Inizializzo una matrice di lavoro
@@ -267,7 +267,7 @@ struct LinearConstrainSystem {
      * @param b: secondo vettore
      * @return difference: La differenza tra i due array
     */
-    long double diff(vector<T>& a, vector<T>& b) const {
+    static long double diff(vector<T>& a, vector<T>& b) const {
         // Se la dimensione dei due array differisce usciamo
         if (a.size() != b.size()){
                 std::cout << "Array di dimensione diversa, uscita..." << std::endl;
@@ -290,7 +290,7 @@ struct LinearConstrainSystem {
      * @param opt: Tipo di ottimizzazione selezionato
      * @return unbounded: Booleano che indica se il sistema NON ha soluzione
     */
-    bool isUnbounded(const vector<T>& hv, const OptimizationType& opt) const{
+    static bool isUnbounded(const vector<T>& hv, const OptimizationType& opt) const{
             bool unbounded{true};
 
             // Controllo se tutti gli elementi...
@@ -316,7 +316,7 @@ struct LinearConstrainSystem {
      * @param opt: Tipo di soluzione selezionata
      * @return dir: la direzione da seguire
     */
-    T direction(const vector<T>& v, const vector<T>& hv, const OptimizationType& opt) const{
+    static T direction(const vector<T>& v, const vector<T>& hv, const OptimizationType& opt) const{
         T dir;
         bool first{true};
 
@@ -355,7 +355,7 @@ struct LinearConstrainSystem {
      * @param a: Vettore di cui fare la norma
      * @return La norma del vettore
     */
-    long double norm(const vector<T>& a) const{
+    static long double norm(const vector<T>& a) const{
         long double sum{0};
         // Sommo i valori al quadrato del vettore
         for (uint i{0}; i<a.size(); ++i){
