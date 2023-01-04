@@ -239,7 +239,7 @@ struct LinearConstrainSystem {
      * @param inverse: Matrice dove inserire l'inversa
      * @return booleano che indica se la matrice è invertibile o meno
     */
-    bool invertMatrix(const matrix<T>& input, matrix<T>& inverse) const{
+    bool invertMatrix(const matrix<T>& input, matrix<T>& inverse) {
         // Definisco una matrice di permutazione
         typedef permutation_matrix<std::size_t> pmatrix;
         // Inizializzo una matrice di lavoro
