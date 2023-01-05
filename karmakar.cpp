@@ -292,20 +292,16 @@ struct LinearConstrainSystem {
     */
     bool isUnbounded(const vector<T>& hv, const OptimizationType& opt) const{
             bool unbounded{true};
+            // Controllo se tutti gli elementi sono negativi nel caso della massimizzazione
+            if (opt == OptimizationType::MAX){
+                auto P = [](T i){ return i<0; };
+                return std::all_of(hv.begin(),hv.end(),P);
+            // Controllo se tutti gli elementi sono positivi nel caso della minimizzazione
+            } else {
+                auto P = [](T i){ return i>0; };                
+                return std::all_of(hv.begin(),hv.end(),P);
 
-            // Controllo se tutti gli elementi...
-            for (uint i{0}; i < hv.size(); ++i){
-                // ...Sono negativi nel caso della massimizzazione
-                if (hv(i) < 0 && opt==OptimizationType::MAX){
-                    unbounded = false;
-                }
-                // ...Sono positivi nel caso della minimizzazione
-                else if (hv(i) > 0 && opt==OptimizationType::MIN){
-                    unbounded = false;
-                }
             }
-
-            return unbounded;
     }
 
     /**
@@ -431,6 +427,7 @@ struct LinearConstrainSystem {
             // Effettuiamo il prodotto tra la matrice A e la matrice hx
             vector<T> hv(-prod(workA, hx));
             // Se il sistema non ammette una soluzione ottima usciamo
+
             if (isUnbounded(hv, type))
             {
                 return SolutionType::UNBOUNDED;
