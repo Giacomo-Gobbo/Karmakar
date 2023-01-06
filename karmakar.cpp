@@ -200,8 +200,8 @@ struct LinearConstrainSystem {
                     sum += A(i, j)*solution(j); 
                 }
 
-                // Se la differenza col vincolo è diversa da zero la soluzione non soddisfa i vincolu
-                if (abs(sum - b[i]) != 0){
+                // Se la differenza col vincolo è superiore ad una certa tolleranza la soluzione non soddisfa i vincoli
+                if (abs(sum - b[i]) >= 1e-10){
                     return false;
                 }
             }
