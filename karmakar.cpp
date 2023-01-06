@@ -7,6 +7,39 @@
 
 using namespace boost::numeric::ublas;
 
+template <typename T>
+class Stopping{
+    std::string type; 
+    T tol; 
+
+    public:
+        Stopping()
+            : type{"max_iter"}, tol{10}
+        {}
+
+        Stopping(std::string type, T tol)
+            : type{type}, tol{tol}
+        {
+            if (this.type != "max_iter" && this.type != "eps"){
+                throw(std::domain_error("Errore nella definizione del criterio di stop: tol_type deve essere 'max_iter' o 'eps'"));
+            }
+        }
+
+        bool check_criterium(const unsigned int& to_check = 0, const double& par_1 = 0, const double& par_2 = 0){
+            if (this.type == "max_iter"){
+                if (this.tol < to_check){
+                    return false;
+                }
+            } else {
+                if (abs(par_1-par_2) < this.tol){
+                    return false;
+                }
+            }
+
+            return true;
+        }
+};
+
 /**
  * @brief Classe template che rappresenta il sistema lineare di vincoli per un problema di programmazione lineare 
  *  
@@ -200,8 +233,8 @@ struct LinearConstrainSystem {
                     sum += A(i, j)*solution(j); 
                 }
 
-                // Se la differenza col vincolo è superiore ad una certa tolleranza la soluzione non soddisfa i vincoli
-                if (abs(sum - b[i]) >= 1e-10){
+                // Se la differenza col vincolo è diversa da zero la soluzione non soddisfa i vincolu
+                if (abs(sum - b[i]) != 0){
                     return false;
                 }
             }
@@ -388,8 +421,8 @@ struct LinearConstrainSystem {
         // Calcolo la soluzione iniziale
         solution = norm(b) / norm(prod(workA, workc)) * workc;
         vector<T> xprev{solution*2};
-
-        while (((this->k) < repetitions-1) && (norm(xprev - solution) > 1e-10)){
+    
+        while (((this->k) < repetitions-1) && (norm(xprev - solution) > 1e-10)){ //(stop.check_criterium(k, xprev, solution)) {
             ++(this->k);
             
             // Calcolo il vettore v che contiene la differenza tra l'array b ed il prodotto della matrice A con il vettore dei punti x
