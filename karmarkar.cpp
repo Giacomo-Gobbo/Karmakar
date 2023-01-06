@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <exception>
 #include <cstdlib>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -8,6 +9,39 @@
 #include <boost/qvm/mat_operations.hpp>
 
 using namespace boost::numeric::ublas;
+
+template <typename T>
+class STOPPING_CRITERIUM{ // definizione della classe StoppingCriterium
+    public:
+    std::string tol_type{"max_iter"}; // tol_type deve essere 'max_iter' o 'eps'
+    T tol{10}; // di default è max_iter con 10 iterazioni 
+
+    void check_criterium(const std::string tol_type){ // funzione che controlla se l'input del tipo del criterio è corretto
+        if (tol_type != "max_iter" && tol_type != "eps"){
+            std::cout << "Errore nella definizione del criterio di stop: tol_type deve essere 'max_iter' o 'eps'" << std::endl;
+            throw("");
+        }
+    }
+};
+
+template <typename T> // metodo per controllare se è rispettato il criterio max_iter oppure il criterio eps
+bool check_criterium(const STOPPING_CRITERIUM<T>& criterium, const unsigned int& to_check = 0, const double& par_1 = 0, const double& par_2 = 0){
+    if (criterium.tol_type == "max_iter"){
+        if (criterium.tol-1 < to_check){
+            return false;
+        }
+        return true;
+    } 
+ 
+    else if (criterium.tol_type == "eps"){
+        if (abs(par_1-par_2) < criterium.tol){
+            return false;
+        }
+        return true;
+    }
+
+   return false;
+}
 
 struct LinearConstraintSystem{
 
@@ -34,8 +68,6 @@ enum class ConstraintType{
 
 enum class OptimizationType { MIN, MAX };
 
-LinearConstraintSystem();
-
 LinearConstraintSystem& add_constraint(const vector<double>& a, const double& b, const ConstraintType type);
 
 matrix<double> diagonale(vector<double> &vector);
@@ -61,7 +93,7 @@ bool invertMatrix(const matrix<double> &input, matrix<double> &inverse);
  * @return è il vettore massimo
  */
 
-
+template <typename T>
 SolutionType affineScaling(
     matrix<double> &A,
     vector<double> &b,
@@ -69,13 +101,11 @@ SolutionType affineScaling(
     vector<double> &x0,
     unsigned int &repetitions,
     OptimizationType opt,
-    ConstraintType con);
+    ConstraintType con,
+    STOPPING_CRITERIUM<T> stop
+    );
 
 };
-
-LinearConstraintSystem& LinearConstraintSystem::add_constraint(const vector<double>& a, const double& b, const LinearConstraintSystem::ConstraintType type){
-
-}
 
 matrix<double> LinearConstraintSystem::diagonale(vector<double> &vector)
 {
@@ -109,7 +139,8 @@ bool LinearConstraintSystem::invertMatrix(const matrix<double> &input, matrix<do
     return true;
 }
 
-LinearConstraintSystem::SolutionType LinearConstraintSystem::affineScaling(matrix<double> &A, vector<double> &b, vector<double> &c, vector<double> &x0, unsigned int &repetitions, LinearConstraintSystem::OptimizationType opt, LinearConstraintSystem::ConstraintType con){
+template <typename T>
+LinearConstraintSystem::SolutionType LinearConstraintSystem::affineScaling(matrix<double> &A, vector<double> &b, vector<double> &c, vector<double> &x0, unsigned int &repetitions, LinearConstraintSystem::OptimizationType opt, LinearConstraintSystem::ConstraintType con, STOPPING_CRITERIUM<T> stop){
     unsigned int k{0};
     vector<double> v[repetitions];
     vector<double> x[repetitions];
@@ -121,6 +152,7 @@ LinearConstraintSystem::SolutionType LinearConstraintSystem::affineScaling(matri
     matrix<double> mInv(b.size(), b.size());
     vector<double> hx(b.size());
     vector<double> hv(b.size());
+    vector<double> for_storing(repetitions); // vettore ausiliario per il criterio 'eps'
     double alpha;
     double min{0};
     double tmp;
@@ -128,10 +160,12 @@ LinearConstraintSystem::SolutionType LinearConstraintSystem::affineScaling(matri
 
     x[0] = x0;
 
-    while (k < repetitions)
+    double par_1 = 0;
+    double par_2 = 10e5;
+
+    while (k < repetitions && check_criterium(stop/*istanza della classe StoppingCriterium*/, k, par_1/*x[k]*/, par_2/*x[k-1]*/)==true)
     {
-        
-        std::cout << "\n\nSTARTING ITERATION n. " << k << std::endl;
+        std::cout << "\n\nSTARTING ITERATION n. " << k+1 << std::endl;
 
         v[k] = b - prod(A, x[k]);
 
@@ -294,26 +328,31 @@ LinearConstraintSystem::SolutionType LinearConstraintSystem::affineScaling(matri
 
         double temp_sum{0};
         for(unsigned int i{0}; i<c.size(); ++i){
-            temp_sum += c(i)*x[k+1](i);
+            temp_sum += c(i)*x[k](i);
         }
-        std::cout << "\nGuess: " << temp_sum;
+        std::cout << "\nGuess: " << temp_sum << std::endl;
+        for_storing[k] = temp_sum;
+        if(k>=1){
+            par_1 = for_storing[k];
+            par_2 = for_storing[k-1];
+        }
         ++k;
-
     }
-    double res{0};
-    for (unsigned int i{0}; i < c.size(); ++i) {
-        res += c(i)*x[repetitions - 1](i);
-    }
-    std::cout << "\n\nOptimum: " << res << std::endl;
 
     return SolutionType::BOUNDED;
 }
 
 int main(){
-
     using namespace boost::numeric::ublas;
 
     unsigned int repetitions{24};
+
+    // criterio di stop:
+    STOPPING_CRITERIUM <int> crit;
+    crit.tol_type = "eps";
+    crit.tol = 1;
+
+    check_criterium(crit);
 
     // inizializzazione:
     matrix<double> A(2, 2);
@@ -337,7 +376,7 @@ int main(){
 
     LinearConstraintSystem lcs;
 
-    if (lcs.affineScaling(A, b, c, x0, repetitions, opt, con) == LinearConstraintSystem::SolutionType::BOUNDED)
+    if (lcs.affineScaling(A, b, c, x0, repetitions, opt, con, crit) == LinearConstraintSystem::SolutionType::BOUNDED)
     {
         std::cout << "BOUNDED solution" << std::endl;
     }
