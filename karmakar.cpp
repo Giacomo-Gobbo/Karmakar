@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/io.hpp>
@@ -7,31 +8,56 @@
 
 using namespace boost::numeric::ublas;
 
+/**
+ * @brief Classe per lo Stopping Criterium
+ * 
+ * @tparam T: Tipo dei valori dei vettori utilizzati
+*/
 template <typename T>
 class Stopping{
-    std::string type; 
-    T tol; 
+    std::string type;   //!< Tipo di stop scelto (max_iter o eps)
+    long double tol;    //!< Valore della tolleranza
 
     public:
+        /**
+         * @brief Costruttore Vuoto
+        */
         Stopping()
             : type{"max_iter"}, tol{10}
         {}
 
-        Stopping(std::string type, T tol)
+        /**
+         * @brief Costruttore con parametri
+         * 
+         * @param type: Tipo di stop scelto
+         * @param tol: Valore della tolleranza
+        */
+        Stopping(std::string type, long double tol)
             : type{type}, tol{tol}
         {
-            if (this.type != "max_iter" && this.type != "eps"){
+            if (this->type != "max_iter" && this->type != "eps"){
                 throw(std::domain_error("Errore nella definizione del criterio di stop: tol_type deve essere 'max_iter' o 'eps'"));
             }
         }
 
-        bool check_criterium(const unsigned int& to_check = 0, const double& par_1 = 0, const double& par_2 = 0){
-            if (this.type == "max_iter"){
-                if (this.tol < to_check){
+        /**
+         * @brief Metodo che controlla se il criterio di stop è verificato
+         * 
+         * @param par_1: Primo vettore utilizzato per il criterio eps
+         * @param par_2: Secondo vettore utilizzato per il criterio eps
+         * @param to_check: Numero di iterazioni da usare per il criterio max_iter
+        */
+        bool check_criterium(vector<T> par_1, vector<T> par_2, const unsigned int& to_check = 0){
+            // Se il criterio di stop è max_iter
+            if (this->type == "max_iter"){
+                // Controllo se il numero di iterazioni effettuate super il numero di iterazioni massime
+                if (this->tol <= to_check){
                     return false;
                 }
+            // Se il criterio di stop è eps
             } else {
-                if (abs(par_1-par_2) < this.tol){
+                // Controllo se la differenza dei due vettori è minore della tolleranza
+                if (norm_1(par_1-par_2) <= this->tol){
                     return false;
                 }
             }
@@ -233,8 +259,8 @@ struct LinearConstrainSystem {
                     sum += A(i, j)*solution(j); 
                 }
 
-                // Se la differenza col vincolo è diversa da zero la soluzione non soddisfa i vincolu
-                if (abs(sum - b[i]) != 0){
+                // Se la differenza col vincolo è diversa da zero la soluzione non soddisfa i vincoli
+                if (abs(sum - b[i]) >= 1e-10){
                     return false;
                 }
             }
@@ -267,6 +293,7 @@ struct LinearConstrainSystem {
 
     /**
      * @brief Metodo che inverte la matrice passata in input
+     * @ref: https://gist.github.com/lilac/2464434
      * 
      * @param input: Matrice da invertire
      * @param inverse: Matrice dove inserire l'inversa
@@ -279,6 +306,7 @@ struct LinearConstrainSystem {
         matrix<T> A(input);
         // Crea una matrice di permutazione per la fattorizzazione LU
         pmatrix pm(A.size1());     
+
         // Esegue la fattorizzazione LU          
         const int res = lu_factorize(A, pm); 
         // Se la fattorizzazione è nulla allora non è invertibile
@@ -286,34 +314,12 @@ struct LinearConstrainSystem {
         {
             return false;
         }
+
         // Assegnamo alla matrice inversa il valore della matrice identità
         inverse = identity_matrix<T>(A.size1());
         // Inverto la matrice
         lu_substitute(A, pm, inverse);
         return true;
-    }
-
-    /**
-     * @brief Metodo che calcola la differenza fra due array
-     * 
-     * @param a: primo vettore
-     * @param b: secondo vettore
-     * @return difference: La differenza tra i due array
-    */
-    long double diff(vector<T>& a, vector<T>& b) const {
-        // Se la dimensione dei due array differisce usciamo
-        if (a.size() != b.size()){
-                std::cout << "Array di dimensione diversa, uscita..." << std::endl;
-                exit(1);
-        }
-        
-        // Calcolo la difference come la somma dei valori assoluti della differenza dei due array
-        long double difference{0};
-        for(uint i{0}; i < a.size(); ++i){
-            difference += std::abs(a[i]-b[i]);
-        }
-
-        return difference;
     }
 
     /**
@@ -324,17 +330,15 @@ struct LinearConstrainSystem {
      * @return unbounded: Booleano che indica se il sistema NON ha soluzione
     */
     bool isUnbounded(const vector<T>& hv, const OptimizationType& opt) const{
-            bool unbounded{true};
-            // Controllo se tutti gli elementi sono negativi nel caso della massimizzazione
-            if (opt == OptimizationType::MAX){
-                auto P = [](T i){ return i<0; };
-                return std::all_of(hv.begin(),hv.end(),P);
-            // Controllo se tutti gli elementi sono positivi nel caso della minimizzazione
-            } else {
-                auto P = [](T i){ return i>0; };                
-                return std::all_of(hv.begin(),hv.end(),P);
-
-            }
+        // Controllo se tutti gli elementi sono negativi nel caso della massimizzazione
+        if (opt == OptimizationType::MAX){
+            auto P = [](T i){ return i<0; };
+            return std::all_of(hv.begin(),hv.end(),P);
+        // Controllo se tutti gli elementi sono positivi nel caso della minimizzazione
+        } else {
+            auto P = [](T i){ return i>0; };                
+            return std::all_of(hv.begin(),hv.end(),P);
+        }
     }
 
     /**
@@ -377,36 +381,18 @@ struct LinearConstrainSystem {
 
         return dir;
     }
-    
-    /**
-     * @brief Metodo che calcola la norma del vettore passato in input
-     * 
-     * @param a: Vettore di cui fare la norma
-     * @return La norma del vettore
-    */
-    long double norm(const vector<T>& a) const{
-        long double sum{0};
-        // Sommo i valori al quadrato del vettore
-        for (uint i{0}; i<a.size(); ++i){
-            sum += a(i)*a(i);
-        }
-
-        // Divido per il numero di elementi
-        return sum/a.size();
-    } 
 
     /** 
      * @brief Metodo che effettua l'algoritmo di karmakar
      * 
-     * @tparam STOP_CRITERION: criterio di Stop selezionato
      * @param solution: Array che conterrà la soluzione
      * @param c: Array contenente i costi del sistema
      * @param gamma: Step-size
      * @param type: Tipo di ottimizzazione scelto
+     * @param stop: criterio di Stop selezionato
      * @return Se il sistema ammette una soluzione ottima o meno
     */
-    template <typename STOPPING_CRITERIUM>
-    SolutionType karmakar(vector<T>& solution, const vector<T>& c, const T gamma, const OptimizationType type, uint repetitions){
+    SolutionType karmakar(vector<T>& solution, const vector<T>& c, const T gamma, const OptimizationType type, Stopping<T>& stop){
         // Calcolo la matrice di lavoro A ed aggiungo al vettore dei costi
         // i costi delle variabili di slack (poste a zero)
         matrix<T> workA{unione()};
@@ -419,10 +405,10 @@ struct LinearConstrainSystem {
         std::cout << "workc: " << workc << std::endl << std::endl;
 
         // Calcolo la soluzione iniziale
-        solution = norm(b) / norm(prod(workA, workc)) * workc;
+        solution = norm_1(b) / norm_1(prod(workA, workc)) * workc;
         vector<T> xprev{solution*2};
     
-        while (((this->k) < repetitions-1) && (norm(xprev - solution) > 1e-10)){ //(stop.check_criterium(k, xprev, solution)) {
+        while (stop.check_criterium(xprev, solution, k)) {  
             ++(this->k);
             
             // Calcolo il vettore v che contiene la differenza tra l'array b ed il prodotto della matrice A con il vettore dei punti x
@@ -453,9 +439,8 @@ struct LinearConstrainSystem {
             {
                 throw(std::domain_error("Matrice T(A)Dv^{-2}A non invertibile"));
             }
-            // std::cout << "ALTRA DV" << std::endl;
 
-            // Effettuiamo il prodotto tra la matrice inversa di T(A)Dv^{-2}A e c
+            // Effettuiamo il prodotto tra la matrice inversa di ((A.T)Dv^-2(A))^-1 e c
             vector<T> hx(prod(mInv, workc));
             // Effettuiamo il prodotto tra la matrice A e la matrice hx
             vector<T> hv(-prod(workA, hx));
@@ -482,6 +467,7 @@ struct LinearConstrainSystem {
         {
             res += workc(i) * solution(i);
         }
+
         if (type == OptimizationType::MAX){
             std::cout << std::endl << "Il massimo è: ";
         } else {
@@ -559,25 +545,26 @@ int main()
     std::cout << "slack: " << obj.diagonale(obj.slack) << std::endl;
     std::cout << "c: " << c << std::endl;
 
-    obj.unione();
-
     vector<long double> x0;
+
+    Stopping<long double> stop;
+    Stopping<long double> stop2("eps", 1e-11);
 
     try {
 
-        auto solution = obj.karmakar<int>(x0, c, 0.5, obj.OptimizationType::MAX, 50);
+        auto solution = obj.karmakar(x0, c, 0.5, obj.OptimizationType::MAX, stop2);
         if (solution == obj.SolutionType::BOUNDED){
             std::cout << "Bounded" << std::endl;
             std::cout << "Soluzione: " << x0 << std::endl;
+        
+            if (obj.is_feasible()){
+                std::cout << "FEASIBLE" << std::endl;
+            } else {
+                std::cout << "NOT FEASIBLE" << std::endl;
+            }
+
         } else {
             std::cout << "Unbounded" << std::endl;
-        }
-        
-
-        if (obj.is_feasible()){
-            std::cout << "FEASIBLE" << std::endl;
-        } else {
-            std::cout << "NOT FEASIBLE" << std::endl;
         }
     } catch(std::exception& e){
         std::cout << typeid(e).name() << ": " << e.what() << std::endl;
