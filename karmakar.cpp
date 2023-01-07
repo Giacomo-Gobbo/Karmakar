@@ -15,7 +15,7 @@ using namespace boost::numeric::ublas;
 */
 template <typename T>
 class Stopping{
-    std::string type;   //!< Tipo di stop scelto (max_iter o eps)
+    std::string type;   //!< Criterio di stop scelto (max_iter o eps)
     long double tol;    //!< Valore della tolleranza
 
     public:
@@ -29,7 +29,7 @@ class Stopping{
         /**
          * @brief Costruttore con parametri
          * 
-         * @param type: Tipo di stop scelto
+         * @param type: Criterio di stop scelto
          * @param tol: Valore della tolleranza
         */
         Stopping(std::string type, long double tol)
@@ -52,17 +52,17 @@ class Stopping{
             if (this->type == "max_iter"){
                 // Controllo se il numero di iterazioni effettuate super il numero di iterazioni massime
                 if (this->tol <= to_check){
-                    return false;
+                    return true;
                 }
             // Se il criterio di stop è eps
             } else {
                 // Controllo se la differenza dei due vettori è minore della tolleranza
                 if (norm_1(par_1-par_2) <= this->tol){
-                    return false;
+                    return true;
                 }
             }
 
-            return true;
+            return false;
         }
 };
 
@@ -408,7 +408,7 @@ struct LinearConstrainSystem {
         solution = norm_1(b) / norm_1(prod(workA, workc)) * workc;
         vector<T> xprev{solution*2};
     
-        while (stop.check_criterium(xprev, solution, k)) {  
+        while (!stop.check_criterium(xprev, solution, k)) {  
             ++(this->k);
             
             // Calcolo il vettore v che contiene la differenza tra l'array b ed il prodotto della matrice A con il vettore dei punti x
