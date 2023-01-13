@@ -6,15 +6,14 @@
 #include <boost/numeric/ublas/triangular.hpp>
 #include <boost/numeric/ublas/lu.hpp>
 
-using namespace boost::numeric::ublas;
-
-/**
- * @brief Classe per lo Stopping Criterium
- * 
- * @tparam T: Tipo dei valori dei vettori utilizzati
-*/
 template <typename T>
 class Stopping{
+    /**
+     * @brief Classe per lo Stopping Criterium
+     * 
+     * @tparam T: Tipo dei valori dei vettori utilizzati
+    */
+    using namespace boost::numeric::ublas;
     std::string type;   //!< Criterio di stop scelto (max_iter o eps)
     long double tol;    //!< Valore della tolleranza
 
@@ -73,6 +72,7 @@ class Stopping{
 */
 template<typename T>
 struct LinearConstrainSystem {
+    using namespace boost::numeric::ublas;
     /**
      * @brief Classe di enumerazione per definire se il sistema ha una soluzione ottima o meno
     */
@@ -481,53 +481,7 @@ struct LinearConstrainSystem {
 
 int main()
 {    
-    // matrix<long double> A{identity_matrix<long double>(2)};
-    // A(0, 1) = -1;
-    // A(1, 0) = 1;
-    // vector<long double> b(2, 2);
-    // b(1) = 6;
-    // LinearConstrainSystem<long double> obj(A, b);
-
-    // LinearConstrainSystem<long double> obj;
-    // vector<long double> vett1(2, 1);
-    // vett1[1] = -1;
-    // vector<long double> vett2(2, 1);
-
-    // obj.add_constrain(vett1, 2, obj.ConstrainType::LE);
-    // obj.add_constrain(vett2, 6, obj.ConstrainType::GE);
-    // vector<long double> c(2, 1);
-    
-    // LinearConstrainSystem<long double> obj;
-    // vector<long double> vett1(2, 1);
-    // vett1[0] = 2;
-    // vector<long double> vett2(2, 3);
-    // vett2[1] = 1;
-    // vector<long double> vett3(2, 1);
-    // vett3[1] = 8;
-
-    // obj.add_constrain(vett1, 5, obj.ConstrainType::LE);
-    // obj.add_constrain(vett2, 2, obj.ConstrainType::LE);
-    // obj.add_constrain(vett3, 1, obj.ConstrainType::LE);
-
-    // obj.add_constrain(vett1, 1, obj.ConstrainType::EQ);
-    // obj.add_constrain(vett2, 2, obj.ConstrainType::EQ);
-    // obj.add_constrain(vett3, 3, obj.ConstrainType::EQ);
-    
-    // obj.add_constrain(vett1, 1, obj.ConstrainType::GE);
-    // obj.add_constrain(vett2, 2, obj.ConstrainType::GE);
-    // obj.add_constrain(vett3, 3, obj.ConstrainType::GE);
-
-
-    // LinearConstrainSystem<long double> obj;
-    // vector<long double> vett1(2, 2);
-    // vett1[0] = -2;
-    // vector<long double> vett2(2, 1);
-
-    // obj.add_constrain(vett1, 5, obj.ConstrainType::LE);
-    // obj.add_constrain(vett2, 0, obj.ConstrainType::LE);
-
-    // vector<long double> c(2, 1);
-    // c[0] = 0.5;
+    using namespace boost::numeric::ublas;
     
     LinearConstrainSystem<long double> obj;
     vector<long double> vett1(2, 1);
