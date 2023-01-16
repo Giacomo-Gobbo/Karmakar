@@ -6,6 +6,8 @@
 #include <boost/numeric/ublas/triangular.hpp>
 #include <boost/numeric/ublas/lu.hpp>
 
+using namespace boost::numeric::ublas;
+
 template <typename T>
 class Stopping{
     /**
@@ -13,7 +15,6 @@ class Stopping{
      * 
      * @tparam T: Tipo dei valori dei vettori utilizzati
     */
-    using namespace boost::numeric::ublas;
     std::string type;   //!< Criterio di stop scelto (max_iter o eps)
     long double tol;    //!< Valore della tolleranza
 
@@ -72,7 +73,6 @@ class Stopping{
 */
 template<typename T>
 struct LinearConstrainSystem {
-    using namespace boost::numeric::ublas;
     /**
      * @brief Classe di enumerazione per definire se il sistema ha una soluzione ottima o meno
     */
@@ -481,7 +481,6 @@ struct LinearConstrainSystem {
 
 int main()
 {    
-    using namespace boost::numeric::ublas;
     
     LinearConstrainSystem<long double> obj;
     vector<long double> vett1(2, 1);
